@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id    String @id @default(uuid())
+  email String @unique
+  password String 
+  name String 
+  createdAt DateTime @default(now())
+  attempts Attempt[]
+}
+
+//enums
+
+enum Difficulty {
+  Easy
+  Medium
+  Hard
+}
+enum Category {
+  React
+  Node
+  JavaScript
+  HR
+  SQL
+}
+
+model Question {
+  id         String     @id @default(uuid())
+  difficulty Difficulty
+  category Category
+  content String
+  createdAt DateTime @default(now())
+  attempts Attempt[]
+}
+
+model Attempt {
+  id          String     @id @default(uuid())
+
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+
+  questionId  String
+  question    Question   @relation(fields: [questionId], references: [id])
+
+  userAnswer  String
+  aiScore     Int
+  aiFeedback  String
+  createdAt   DateTime   @default(now())
+}
