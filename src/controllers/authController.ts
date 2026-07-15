@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { comparePassword, generateToken, hashPassword } from '../services/authServices';
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/authMiddleware';
 const prisma = new PrismaClient();
 
 export async function register(req: Request, res: Response) {
@@ -59,4 +60,17 @@ export async function login(req: Request, res: Response) {
     res.status(401).json({ message: 'Email or password is incorrect' });
     return;
   }
+}
+export async function getProfile(req: AuthRequest, res: Response) {
+  if (!req.userId) {
+    res.status(401).json({ message: 'Not authenticated' });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId }, // now narrowed to `string`
+    select: { id: true, email: true, name: true, createdAt: true },
+  });
+
+  res.status(200).json({ user });
 }
