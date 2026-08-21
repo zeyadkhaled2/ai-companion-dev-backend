@@ -40,3 +40,10 @@ export async function submitAnswer(userId: string, questionId: string, userAnswe
     })
     return attempt;
 }
+export async function getUserAttempts(userId: string) {
+    return prisma.attempt.findMany({
+      where: { userId },
+      include: { question: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
