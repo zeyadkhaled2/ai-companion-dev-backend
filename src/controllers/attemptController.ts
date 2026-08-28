@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { submitAnswerSchema } from '../types/attemptSchemas';
 import { submitAnswer } from '../services/attemptServices';
 import { getUserAttempts } from '../services/attemptServices';
+import { getUserStats } from '../services/attemptServices';
 
 export async function submitAnswerController(req: AuthRequest, res: Response) {
   const parseResult = submitAnswerSchema.safeParse(req.body);
@@ -39,4 +40,12 @@ export async function getAttemptsController(req: AuthRequest, res: Response) {
 
   const attempts = await getUserAttempts(req.userId);
   res.status(200).json({ attempts });
+}
+export async function getStatsController(req: AuthRequest, res: Response) {
+  if (!req.userId) {
+    res.status(401).json({ message: 'Not authenticated' });
+    return;
+  }
+  const stats = await getUserStats(req.userId);
+  res.status(200).json({ stats });
 }

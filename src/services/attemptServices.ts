@@ -47,3 +47,32 @@ export async function getUserAttempts(userId: string) {
       orderBy: { createdAt: 'desc' },
     });
   }
+  export async function getUserStats(userId: string) {
+  const attempts = await prisma.attempt.findMany({
+    where: { userId },
+    include: { question: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const totalAttempts = attempts.length;
+  const averageScore = totalAttempts === 0
+    ? 0
+    : Math.round(attempts.reduce((sum, a) => sum + a.aiScore, 0) / totalAttempts);
+
+  // group by category
+  const byCategory: Record<string, { total: number; count: number }> = {};
+  for (const attempt of attempts) {
+    const cat = attempt.question.category;
+    if (!byCategory[cat]) byCategory[cat] = { total: 0, count: 0 };
+    byCategory[cat].total += attempt.aiScore;
+    byCategory[cat].count += 1;
+  }
+  const categoryAverages = Object.entries(byCategory).map(([category, data]) => ({
+    category,
+    averageScore: Math.round(data.total / data.count),
+  }));
+
+  const scoreTrend = attempts.map((a) => ({ score: a.aiScore, date: a.createdAt }));
+
+  return { totalAttempts, averageScore, categoryAverages, scoreTrend };
+}
