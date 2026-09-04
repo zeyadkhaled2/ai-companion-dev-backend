@@ -3,6 +3,7 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import questionRoutes from './routes/questionRoutes';
 import attemptroutes from './routes/attemptRoutes'
+import chatRoutes from './routes/chatRoutes'
 const app = express();
 
 app.use(cors());
@@ -11,7 +12,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/attempts', attemptroutes);
-
+app.use('/api/chat', chatRoutes);
 
 // app.get('/', (req, res) => {
 //   res.json({ message: 'AI Developer Companion API is running' });

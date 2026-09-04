@@ -28,6 +28,10 @@ export async function submitAnswerController(req: AuthRequest, res: Response) {
       res.status(404).json({ message: 'Question not found' });
       return;
     }
+    if (err instanceof Error && err.message === 'AI_RATE_LIMIT') {
+      res.status(429).json({ message: 'AI is a bit busy right now — please try again in a moment.' });
+      return;
+    }
     console.error(err);
     res.status(500).json({ message: 'Failed to evaluate answer' });
   }

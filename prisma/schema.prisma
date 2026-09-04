@@ -20,6 +20,8 @@ model User {
   name String 
   createdAt DateTime @default(now())
   attempts Attempt[]
+  conversations Conversation[]
+
 }
 
 //enums
@@ -59,4 +61,27 @@ model Attempt {
   aiScore     Int
   aiFeedback  String
   createdAt   DateTime   @default(now())
+}
+// chat mentor schema
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  title     String?
+  createdAt DateTime  @default(now())
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  role           MessageRole
+  content        String
+  createdAt      DateTime     @default(now())
+}
+
+enum MessageRole {
+  user
+  assistant
 }
