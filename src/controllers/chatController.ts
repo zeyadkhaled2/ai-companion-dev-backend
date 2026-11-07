@@ -1,7 +1,16 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { sendMessageSchema } from '../types/chatSchemas';
-import { sendMessage } from '../services/chatServices';
+import { getLatestConversation, sendMessage } from '../services/chatServices';
+
+export async function getLatestConversationController(req: AuthRequest, res: Response) {
+  if (!req.userId) {
+    res.status(401).json({ message: 'Not authenticated' });
+    return;
+  }
+  const conversation = await getLatestConversation(req.userId);
+  res.json({ conversation });
+}
 
 export async function sendMessageController(req: AuthRequest, res: Response) {
   const parseResult = sendMessageSchema.safeParse(req.body);

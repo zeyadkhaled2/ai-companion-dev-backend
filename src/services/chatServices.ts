@@ -3,12 +3,20 @@ import { chatWithAI } from './geminiService';
 
 const prisma = new PrismaClient();
 
+export async function getLatestConversation(userId: string) {
+  return prisma.conversation.findFirst({
+    where: { userId, messages: { some: {} } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, messages: { orderBy: { createdAt: 'asc' }, select: { id: true, role: true, content: true } } },
+  });
+}
+
 export async function sendMessage(userId: string, conversationId: string | null, userMessage: string) {
   let conversation;
 
   if (conversationId) {
-    conversation = await prisma.conversation.findUnique({
-      where: { id: conversationId },
+    conversation = await prisma.conversation.findFirst({
+      where: { id: conversationId, userId },
       include: { messages: { orderBy: { createdAt: 'asc' } } },
     });
     if (!conversation) throw new Error('Conversation not found');
@@ -19,16 +27,7 @@ export async function sendMessage(userId: string, conversationId: string | null,
     });
   }
 
-  // TODO 1: save the user's new message to the DB
-  await prisma.message.create({
-    data: {
-      conversationId: conversation.id,
-      role: 'user',
-      content: userMessage,
-    },
-  });
-
-  // TODO 2: build the full history array to send to Gemini
+  // Do not persist a failed turn as a successfully sent message.
   const history = [
     ...conversation.messages.map((msg) => ({
       role: msg.role === 'assistant' ? 'model' as const : 'user' as const,
@@ -37,18 +36,14 @@ export async function sendMessage(userId: string, conversationId: string | null,
     { role: 'user' as const, content: userMessage },
   ];
 
-  // TODO 3: call chatWithAI with that history
   const replyText = await chatWithAI(history);
 
-  // TODO 4: save the AI's reply to the DB
-  await prisma.message.create({
-    data: {
-      conversationId: conversation.id,
-      role: 'assistant',
-      content: replyText,
-    },
+  const sentAt = Date.now();
+  await prisma.$transaction(async (tx) => {
+    // PostgreSQL now() is constant within a transaction; keep turn order explicit.
+    await tx.message.create({ data: { conversationId: conversation.id, role: 'user', content: userMessage, createdAt: new Date(sentAt) } });
+    await tx.message.create({ data: { conversationId: conversation.id, role: 'assistant', content: replyText, createdAt: new Date(sentAt + 1) } });
   });
 
-  // TODO 5: return the result
   return { conversationId: conversation.id, reply: replyText };
 }
