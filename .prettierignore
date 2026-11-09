@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.expo/
+.idea/
+package-lock.json
+prisma/migrations/
+FRONTEND_REVIEW.md

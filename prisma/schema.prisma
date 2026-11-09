@@ -17,11 +17,21 @@ model User {
   id    String @id @default(uuid())
   email String @unique
   password String 
+  photo String?
   name String 
   createdAt DateTime @default(now())
   attempts Attempt[]
   conversations Conversation[]
+  loginDays LoginDay[]
 
+}
+
+model LoginDay {
+  userId String
+  day    DateTime @db.Date
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day])
 }
 
 //enums

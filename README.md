@@ -1,93 +1,63 @@
-# AI Developer Companion — Backend
+# AI Developer Companion API
 
-A TypeScript/Express REST API powering **AI Developer Companion**, a mobile app that helps developers prepare for technical interviews with AI-generated practice questions, AI-scored feedback, and a conversational AI mentor.
+Express 5 + TypeScript API for interview practice, scored feedback, progress tracking, and a persistent Gemini mentor. PostgreSQL is the source of truth; Prisma manages the schema.
 
-## Features
+## Run locally
 
-- 🔐 **JWT Authentication** — secure registration/login with bcrypt password hashing and protected routes
-- 🤖 **AI Question Generation** — generates realistic technical interview questions via Google Gemini, with a growing, reusable question bank to reduce redundant AI calls
-- 📝 **AI Answer Evaluation** — scores user answers (0–100) with structured, constructive feedback
-- 📊 **Progress Analytics** — aggregated stats (average score, performance by category) for the user's practice history
-- 💬 **AI Chat Mentor** — multi-turn conversational assistant with persisted chat history for open-ended interview prep questions
-- 🛡️ Graceful handling of AI provider rate limits (429s surfaced clearly rather than failing silently)
+Use Node 24 (also used by CI).
 
-## Tech Stack
+1. Run `npm ci`.
+2. Copy `.env.example` to `.env` and set `DATABASE_URL`, `JWT_SECRET`, and `GEMINI_API_KEY`. Never commit real secrets.
+3. Run `npm run db:generate` then `npm run db:migrate` to apply committed migrations to your development database.
+4. Run `npm run dev`. The API listens on port 3000 by default.
 
-- **Runtime/Language:** Node.js, TypeScript
-- **Framework:** Express.js
-- **Database:** PostgreSQL (hosted on [Neon](https://neon.tech)), via **Prisma ORM**
-- **Auth:** JWT (jsonwebtoken), bcrypt
-- **AI:** Google Gemini API (`gemini-3.5-flash`)
-- **Validation:** Zod
+For production: `npm run build`, then `npm start`. Set environment variables in the hosting service. Deploy migrations explicitly before starting the new version; application startup does not change the schema.
 
-## Architecture
+## Project map
 
-The codebase follows a layered architecture — controllers handle HTTP concerns only, services hold business logic and are framework-agnostic, keeping the code testable and easy to navigate:
-
-```
+```text
 src/
-├── controllers/   # HTTP request/response handling
-├── services/      # Business logic, AI calls, DB queries
-├── routes/        # Express route definitions
-├── middleware/     # JWT auth middleware
-├── types/         # Zod schemas + TypeScript types
-prisma/
-└── schema.prisma  # Database schema (User, Question, Attempt, Conversation, Message)
+  server.ts                 Environment loading, listener, shutdown
+  app.ts                    Express middleware and route composition
+  modules/
+    auth/                   Login, registration, profile and photo endpoints
+    practice/               Question generation and question-bank reuse
+    attempts/               Answer evaluation, history and statistics
+    chat/                   Conversation restoration and message handling
+  integrations/gemini/      Provider calls and prompts
+  shared/
+    database/prisma.ts      The shared Prisma client
+    middleware/             Authentication
+prisma/                     Schema and versioned migrations
+tests/                      Node regression tests with mocked dependencies
+docs/DEVELOPMENT.md          Extension guide and manual checks
 ```
 
-## API Overview
+Each module colocates its routes, controller, service, and validation schema where needed. Routes declare HTTP paths; controllers translate requests and responses; services own domain operations. Auth currently queries Prisma in its controller as well as using a credential service. Keep this small structure rather than adding empty abstraction layers.
 
-| Method | Endpoint                | Description                          | Auth |
-|--------|--------------------------|---------------------------------------|------|
-| POST   | `/api/auth/register`     | Create a new account                  | No   |
-| POST   | `/api/auth/login`        | Log in, receive a JWT                 | No   |
-| GET    | `/api/auth/profile`      | Get current user's profile            | Yes  |
-| POST   | `/api/questions/generate`| Get an AI-generated or reused question| Yes  |
-| POST   | `/api/attempts`          | Submit an answer for AI evaluation    | Yes  |
-| GET    | `/api/attempts`          | Get the user's attempt history        | Yes  |
-| GET    | `/api/attempts/stats`    | Get aggregated performance stats      | Yes  |
-| POST   | `/api/chat/message`      | Send a message to the AI mentor       | Yes  |
+## API
 
-## Getting Started
+All protected requests use `Authorization: Bearer <token>`.
 
-### Prerequisites
-- Node.js 18+
-- A [Neon](https://neon.tech) PostgreSQL database (or any Postgres instance)
-- A free [Google Gemini API key](https://aistudio.google.com)
+- `POST /api/auth/register`: name, email, password, optional photo; returns token and profile.
+- `POST /api/auth/login`: email and password; returns token and profile.
+- `GET /api/auth/profile`: current user.
+- `PATCH /api/auth/profile/photo`: bounded JPEG data URL, or `null` to remove.
+- `POST /api/questions/generate`: category and difficulty.
+- `POST /api/attempts`: question ID and answer; evaluates and persists feedback.
+- `GET /api/attempts`: authenticated user's history.
+- `GET /api/attempts/stats`: authenticated user's aggregates.
+- `GET /api/chat/conversation`: latest nonempty conversation.
+- `POST /api/chat/message`: message and optional conversation ID.
 
-### Setup
+Read each module's routes and schemas for exact request fields. Categories are React, Node, JavaScript, HR and SQL; difficulty is Easy, Medium or Hard.
 
-```bash
-git clone <this-repo-url>
-cd ai-dev-companion-backend
-npm install
-```
+## Checks
 
-Create a `.env` file in the root:
-```env
-DATABASE_URL="your-postgres-connection-string"
-JWT_SECRET="your-random-secret-string"
-GEMINI_API_KEY="your-gemini-api-key"
-```
+- `npm run check`: formatting, TypeScript, and regression tests.
+- `npm run format`: format maintained source and tests.
+- `npm run build`: compile to `dist/`.
 
-Run database migrations:
-```bash
-npx prisma migrate dev
-```
+GitHub Actions runs checks and the build on pushes and pull requests. Tests mock Prisma and Gemini; they do not need live credentials or consume AI quota. They cover chat ownership/order/failure and profile-photo validation/ownership. They are not a substitute for a live API smoke test.
 
-Start the dev server:
-```bash
-npm run dev
-```
-
-The API will be running at `http://localhost:3000`.
-
-## Design Decisions Worth Noting
-
-- **Question bank with reuse strategy** — rather than calling the AI for every single question request, the app checks for existing questions matching the requested category/difficulty first, generating a new one ~30% of the time once a healthy bank exists. This reduces AI costs/latency while keeping the question pool fresh over time.
-- **No pre-stored "correct answers"** — answers are evaluated contextually by the AI at submission time rather than matched against a canonical answer, since many interview questions have multiple valid correct answers.
-- **Provider-agnostic message roles** — chat messages are stored as `user`/`assistant` in the database (not `user`/`model`, which is Gemini-specific), translated only at the point of calling the AI — keeping the data model decoupled from a specific AI vendor.
-
-## Related Repo
-
-The React Native (Expo) frontend for this project lives at: `<link to frontend repo>`
+[Mobile repository](https://github.com/zeyadkhaled2/ai-companion-dev-frontend)

@@ -1,11 +1,18 @@
 {
   "name": "ai-dev-companion-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "dev": "ts-node-dev --respawn src/app.ts",
-    "typecheck": "tsc --noEmit"
+    "dev": "ts-node-dev --respawn src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "check": "npm run format:check && npm run typecheck && npm test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.cjs\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.cjs\""
   },
   "keywords": [],
   "author": "",
@@ -28,8 +35,12 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.1.1",
+    "prettier": "3.9.10",
     "prisma": "^6.19.3",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24 <25"
   }
 }

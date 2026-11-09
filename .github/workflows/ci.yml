@@ -34,7 +34,11 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Generate Prisma types
         run: npx --no-install prisma generate
+      - name: Check formatting
+        run: npm run format:check
       - name: Check TypeScript
         run: npm run typecheck
       - name: Run regression tests
         run: npm test
+      - name: Build production server
+        run: npm run build
