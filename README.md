@@ -1,63 +1,50 @@
-# AI Developer Companion API
+# DevReps API
 
-Express 5 + TypeScript API for interview practice, scored feedback, progress tracking, and a persistent Gemini mentor. PostgreSQL is the source of truth; Prisma manages the schema.
+This is the backend for the [DevReps mobile app](https://github.com/zeyadkhaled2/devreps-mobile). It handles accounts, technical interview questions and feedback, practice history, streaks, and the Mentor chat.
 
-## Run locally
+The API uses **Express and TypeScript**, with **PostgreSQL and Prisma** for storage. Gemini generates questions when needed, evaluates answers, and replies in Mentor. The API also reuses questions from its saved question bank.
 
-Use Node 24 (also used by CI).
+## Run it locally
+
+You’ll need **Node 24**, a PostgreSQL database, and a Gemini API key.
 
 1. Run `npm ci`.
-2. Copy `.env.example` to `.env` and set `DATABASE_URL`, `JWT_SECRET`, and `GEMINI_API_KEY`. Never commit real secrets.
-3. Run `npm run db:generate` then `npm run db:migrate` to apply committed migrations to your development database.
-4. Run `npm run dev`. The API listens on port 3000 by default.
+2. Copy `.env.example` to `.env`.
+3. Set the values below, then run the startup commands.
 
-For production: `npm run build`, then `npm start`. Set environment variables in the hosting service. Deploy migrations explicitly before starting the new version; application startup does not change the schema.
+- `DATABASE_URL` is the connection string for your PostgreSQL database.
+- `JWT_SECRET` is a long, randomly generated secret used to sign login tokens.
+- `GEMINI_API_KEY` is the key used by the API to call Gemini.
+- `PORT` is optional and defaults to `3000`.
 
-## Project map
-
-```text
-src/
-  server.ts                 Environment loading, listener, shutdown
-  app.ts                    Express middleware and route composition
-  modules/
-    auth/                   Login, registration, profile and photo endpoints
-    practice/               Question generation and question-bank reuse
-    attempts/               Answer evaluation, history and statistics
-    chat/                   Conversation restoration and message handling
-  integrations/gemini/      Provider calls and prompts
-  shared/
-    database/prisma.ts      The shared Prisma client
-    middleware/             Authentication
-prisma/                     Schema and versioned migrations
-tests/                      Node regression tests with mocked dependencies
-docs/DEVELOPMENT.md          Extension guide and manual checks
+```sh
+npm run db:generate
+npm run db:migrate
+npm run dev
 ```
 
-Each module colocates its routes, controller, service, and validation schema where needed. Routes declare HTTP paths; controllers translate requests and responses; services own domain operations. Auth currently queries Prisma in its controller as well as using a credential service. Keep this small structure rather than adding empty abstraction layers.
+The default API base URL is `http://localhost:3000/api`. Use the address your device can reach when configuring the mobile app. Keep real credentials in `.env` or your hosting provider’s secret settings.
 
-## API
+## API routes
 
-All protected requests use `Authorization: Bearer <token>`.
+Paths below are relative to `/api`. Register and login return a token. Send it as `Authorization: Bearer <token>` for the other routes.
 
-- `POST /api/auth/register`: name, email, password, optional photo; returns token and profile.
-- `POST /api/auth/login`: email and password; returns token and profile.
-- `GET /api/auth/profile`: current user.
-- `PATCH /api/auth/profile/photo`: bounded JPEG data URL, or `null` to remove.
-- `POST /api/questions/generate`: category and difficulty.
-- `POST /api/attempts`: question ID and answer; evaluates and persists feedback.
-- `GET /api/attempts`: authenticated user's history.
-- `GET /api/attempts/stats`: authenticated user's aggregates.
-- `GET /api/chat/conversation`: latest nonempty conversation.
-- `POST /api/chat/message`: message and optional conversation ID.
+- **Account** — `POST /auth/register`, `POST /auth/login`, `GET /auth/profile`, `PATCH /auth/profile/photo`
+- **Interview practice** — `POST /questions/generate` and `POST /attempts`
+- **History and progress** — `GET /attempts`, `GET /attempts/stats`, and `POST /streak/check-in`
+- **Mentor** — `GET /chat/conversation` and `POST /chat/message`
 
-Read each module's routes and schemas for exact request fields. Categories are React, Node, JavaScript, HR and SQL; difficulty is Easy, Medium or Hard.
+The route and schema files in `src/modules/` describe the exact request fields. The JavaScript output puzzles and Data Structures Lab run in the mobile app.
 
-## Checks
+## Where the code lives
 
-- `npm run check`: formatting, TypeScript, and regression tests.
-- `npm run format`: format maintained source and tests.
-- `npm run build`: compile to `dist/`.
+- `src/modules/` groups routes and logic by feature.
+- `src/integrations/gemini/` contains the prompts and Gemini client calls.
+- `src/shared/` holds the Prisma client and authentication middleware.
+- `prisma/` holds the database schema and migrations.
 
-GitHub Actions runs checks and the build on pushes and pull requests. Tests mock Prisma and Gemini; they do not need live credentials or consume AI quota. They cover chat ownership/order/failure and profile-photo validation/ownership. They are not a substitute for a live API smoke test.
+## Checks and production
 
-[Mobile repository](https://github.com/zeyadkhaled2/ai-companion-dev-frontend)
+Run `npm run check` for formatting, TypeScript, and regression tests. The tests mock Prisma and Gemini, so you can run them without live credentials. GitHub Actions also verifies that the API builds.
+
+For production, run `npm run db:generate` and `npm run build`. Apply committed migrations with `npm run db:migrate` before running `npm start`. See the [development guide](docs/DEVELOPMENT.md) for module conventions and smoke tests.
